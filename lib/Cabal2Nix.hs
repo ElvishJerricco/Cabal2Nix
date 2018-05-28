@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module Cabal2Nix (cabal2nix, Src(..)) where
+module Cabal2Nix (cabal2nix, gpd2nix, Src(..)) where
 
 import Distribution.PackageDescription.Parsec (readGenericPackageDescription)
 import Distribution.Verbosity (normal)
@@ -49,10 +49,11 @@ lhs $//? (Just e) = lhs $// e
 lhs $//? Nothing  = lhs
 
 cabal2nix :: Maybe Src -> FilePath -> IO NExpr
-cabal2nix src = fmap go . readGenericPackageDescription normal
-  where go :: GenericPackageDescription -> NExpr
-        go gpd = mkFunction args . lets gpd $ toNix gpd $//? (toNix <$> src)
-        args :: Params NExpr
+cabal2nix src = fmap (gpd2nix src) . readGenericPackageDescription normal
+
+gpd2nix :: Maybe Src -> GenericPackageDescription -> NExpr
+gpd2nix src gpd = mkFunction args . lets gpd $ toNix gpd $//? (toNix <$> src)
+  where args :: Params NExpr
         args = mkParamset [ ("system", Nothing)
                           , ("compiler", Nothing)
                           , ("flags", Just $ mkNonRecSet [])

@@ -66,6 +66,24 @@ executable Hashes2Nix
   hs-source-dirs:      hashes2nix
   default-language:    Haskell2010
 
+executable Hackage2Nix
+  ghc-options:         -Wall
+  main-is:             Main.hs
+  build-depends:       base >=4.11 && <4.12
+                     , Cabal2Nix
+                     , hackage-db
+                     , hnix
+                     , Cabal
+                     , containers
+                     , bytestring
+                     , text
+                     , cryptohash-sha256
+                     , base16-bytestring
+                     , filepath
+                     , directory
+  hs-source-dirs:      hackage2nix
+  default-language:    Haskell2010
+
 executable Lts2Nix
   ghc-options:         -Wall
   main-is:             Main.hs

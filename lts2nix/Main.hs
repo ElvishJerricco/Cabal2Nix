@@ -41,9 +41,9 @@ lts2nix lts = mkFunction "hackage" . mkNonRecSet $
     ]
   ]
   where pkgs = lts ^. key "packages" . _Object
-              <&> (^. key "version" . _String)
+              <&> (\v -> (v ^. key "version" . _String, v ^. key "cabal-file-info" . key "hashes" . key "SHA256" . _String))
         corePkgs = lts ^. key "system-info" . key "core-packages" . _Object
                    <&> (^. _String)
-        bind pkg ver = quoted pkg $= mkSym "hackage" !. pkg !. ver
+        bind pkg (ver, hash) = quoted pkg $= mkSym "hackage" !. pkg !. ver !. hash
         bind' pkg ver = quoted pkg $= mkStr ver
 

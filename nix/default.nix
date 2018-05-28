@@ -1,4 +1,6 @@
-{ pkgs ? import <nixpkgs> {} }:
+{ pkgs ? import <nixpkgs> {}
+, lts ? ../plan.nix
+}:
 
 (pkgs.lib.fix (self: with self; {
   inherit (pkgs) lib stdenv;
@@ -6,9 +8,13 @@
   haskellLib = import ./lib.nix { inherit lib haskellLib; };
   hackage = import ../hackage;
   stackage = import ../stackage/lts-11.11.nix (lib.mapAttrs (_: p:
-    lib.mapAttrs (ver: revs: lib.mapAttrs' (_: rev:
-      {name = rev.cabalSha256; value = revs // {revision = rev;};}
-    ) (builtins.removeAttrs revs ["revision" "sha256"])) p
+    lib.mapAttrs (ver: vdata:
+      let revs = builtins.removeAttrs vdata ["revision" "sha256"];
+      in lib.mapAttrs (_: rev: vdata // {revision = rev;}) revs
+        // lib.mapAttrs' (_: rev:
+            {name = rev.cabalSha256; value = vdata // {revision = rev;};}
+          ) revs
+    ) p
   ) hackage);
   new-builder = pkgs.callPackage ./new-builder.nix {
     inherit haskellLib ghc;

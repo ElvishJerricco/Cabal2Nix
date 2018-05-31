@@ -1,5 +1,5 @@
 { pkgs ? import <nixpkgs> {}
-, lts ? ../plan.nix
+, planFile ? ../stackage/lts-11.11.nix
 }:
 
 (pkgs.lib.fix (self: with self; {
@@ -7,10 +7,11 @@
   ghc = pkgs.haskell.compiler.${stackage.compiler.nix-name};
   haskellLib = import ./lib.nix { inherit lib haskellLib; };
   hackage = import ../hackage;
-  stackage = import ../stackage/lts-11.11.nix (lib.mapAttrs (_: p:
+  plan = import planFile (lib.mapAttrs (_: p:
     lib.mapAttrs (ver: vdata:
       let revs = builtins.removeAttrs vdata ["revision" "sha256"];
-      in lib.mapAttrs (_: rev: vdata // {revision = rev;}) revs
+      in vdata
+        // lib.mapAttrs (_: rev: vdata // {revision = rev;}) revs
         // lib.mapAttrs' (_: rev:
             {name = rev.cabalSha256; value = vdata // {revision = rev;};}
           ) revs
@@ -23,7 +24,7 @@
 
   compiler = cabal.compiler // {
     isGhc = true;
-    version = lib.mapAttrs (_: f: v: f (builtins.compareVersions stackage.compiler.version v)) {
+    version = lib.mapAttrs (_: f: v: f (builtins.compareVersions plan.compiler.version v)) {
       eq = c: c == 0;
       gt = c: c > 0;
       ge = c: c >= 0;
@@ -72,8 +73,8 @@
   } // {
     inherit (f) sha256;
     cabalFile = if f.revision == f.r0 then null else f.revision.cabalFile;
-  }) stackage.packages;
+  }) plan.packages;
 
-  hsPkgs = lib.mapAttrs (_: _: null) (stackage.compiler.packages // { hsc2hs = "0.68.2"; })
+  hsPkgs = lib.mapAttrs (_: _: null) (plan.compiler.packages // { hsc2hs = "0.68.2"; })
     // lib.mapAttrs (_: new-builder) configs;
 }))

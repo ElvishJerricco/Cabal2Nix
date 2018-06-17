@@ -44,7 +44,7 @@ pkgs, hsPkgs, flags :: Text
 pkgs   = "pkgs"
 hsPkgs = "hsPkgs"
 pkgconfPkgs = "pkgconfPkgs"
-flags  = "_flags"
+flags  = "flags"
 
 ($//?) :: NExpr -> Maybe NExpr -> NExpr
 lhs $//? (Just e) = lhs $// e
@@ -54,16 +54,14 @@ cabal2nix :: Maybe Src -> FilePath -> IO NExpr
 cabal2nix src = fmap (gpd2nix src) . readGenericPackageDescription normal
 
 gpd2nix :: Maybe Src -> GenericPackageDescription -> NExpr
-gpd2nix src gpd = mkFunction args . lets gpd $ toNix gpd $//? (toNix <$> src)
+gpd2nix src gpd = mkFunction args $ toNix gpd $//? (toNix <$> src)
   where args :: Params NExpr
         args = mkParamset [ ("system", Nothing)
                           , ("compiler", Nothing)
-                          , ("flags", Just $ mkNonRecSet [])
+                          , ("flags", Nothing)
                           , (pkgs, Nothing)
                           , (hsPkgs, Nothing)
                           , (pkgconfPkgs, Nothing)]
-        lets :: GenericPackageDescription -> NExpr -> NExpr
-        lets gpd = mkLets [ flags $= (mkNonRecSet . fmap toNixBinding $ genPackageFlags gpd) $// mkSym "flags" ]
 
 class HasBuildInfo a where
   getBuildInfo :: a -> BuildInfo
@@ -95,7 +93,6 @@ shakeBranch :: (Foldable t, Foldable f) => CondBranch v (t c) (f a) -> Maybe (Co
 shakeBranch (CondBranch c t f) = case (shakeTree t, f >>= shakeTree) of
   (Nothing, Nothing) -> Nothing
   (Nothing, Just f') -> shakeBranch (CondBranch (CNot c) f' Nothing)
-  (Just (CondNode d _c [(CondBranch c' t' f')]), Nothing) | null d -> Just $ CondBranch (CAnd c c') t' f'
   (Just t', f') -> Just (CondBranch c t' f')
 
 --- String helper
@@ -156,7 +153,7 @@ mkSysDep :: String -> SysDependency
 mkSysDep = SysDependency
 
 instance ToNixExpr GenericPackageDescription where
-  toNix gpd = mkNonRecSet $ [ "flags"      $= mkSym flags -- keep track of the final flags; and allow them to be inspected
+  toNix gpd = mkNonRecSet $ [ "flags"      $= (mkNonRecSet . fmap toNixBinding $ genPackageFlags gpd)
                             , "package"    $= (toNix (packageDescription gpd))
                             , "components" $= components ]
     where packageName = fromString . show . disp . pkgName . package . packageDescription $ gpd
